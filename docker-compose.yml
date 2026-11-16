@@ -1,0 +1,14 @@
+services:
+  band3-rooms:
+    build: .
+    image: band3-rooms:latest
+    container_name: band3-rooms
+    # Games must be seen at their own addresses. Docker's published ports keep
+    # them for connections from other machines; if the log shows every game
+    # coming from one 172.x address, use host networking instead:
+    # network_mode: host
+    ports:
+      - "19532:19532/tcp"
+    env_file:
+      - .env
+    restart: unless-stopped

@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>band3-rooms</Name>
+  <Repository>ghcr.io/idio-sync/band3-rooms:latest</Repository>
+  <Registry>https://github.com/idio-sync/band3-rooms/pkgs/container/band3-rooms</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell/>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/idio-sync/band3-rooms/issues</Support>
+  <Project>https://github.com/idio-sync/band3-rooms</Project>
+  <Overview>A Liveless Rooms server for band3 (the PC recompilation of Rock Band 3) and RB3Enhanced. Each game logs in and gets a short room code; a player who enters someone's code is told where that game is, and the games then connect to each other directly. The server only introduces games: it never carries game traffic, so whoever hosts still needs UDP 9103 forwarded to their own PC or console.[br][br]Forward TCP 19532 from your router to this server. Set Address to the host name players will enter as their Rooms server, exactly as they'll type it.[br][br]If some players are on the same network as this server, set LAN public IP to your public address so players from outside are sent somewhere they can reach.</Overview>
+  <Category>GameServers:</Category>
+  <WebUI/>
+  <TemplateURL>https://raw.githubusercontent.com/idio-sync/band3-rooms/main/unraid/band3-rooms.xml</TemplateURL>
+  <Icon/>
+  <ExtraParams/>
+  <PostArgs/>
+  <Config Name="Rooms port" Target="19532" Default="19532" Mode="tcp" Description="Where games log in. RB3Enhanced always uses 19532; band3 can use another with :port in its Rooms server setting." Type="Port" Display="always" Required="true" Mask="false">19532</Config>
+  <Config Name="Address" Target="ROOMS_ADDRESS" Default="" Mode="" Description="The server's host name exactly as players enter it (band3's liveless_rooms_server without :port, RB3Enhanced's LivelessAddress); login proofs are signed with it. Comma-separated for more than one." Type="Variable" Display="always" Required="true" Mask="false"></Config>
+  <Config Name="LAN public IP" Target="ROOMS_LAN_PUBLIC_IP" Default="" Mode="" Description="Your public IPv4, given to games that connect from your own network; blank = their LAN address" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Allow versions" Target="ROOMS_ALLOW_VERSIONS" Default="" Mode="" Description="Optional: only clients whose version starts with one of these (comma-separated), e.g. idio-sync/band3 for band3 only" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Deny versions" Target="ROOMS_DENY_VERSIONS" Default="" Mode="" Description="Optional: turn away clients whose version starts with one of these (comma-separated); wins over Allow versions" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="Require proof" Target="ROOMS_REQUIRE_PROOF" Default="true" Mode="" Description="Ask games to sign their login with Address, and check emulators' signatures" Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="Allow consoles" Target="ROOMS_ALLOW_CONSOLES" Default="true" Mode="" Description="Take logins from real Xbox 360s running RB3Enhanced, whose signatures can't be checked" Type="Variable" Display="advanced" Required="false" Mask="false">true</Config>
+  <Config Name="Ping" Target="ROOMS_PING" Default="10s" Mode="" Description="How often each game is pinged; games hang up after 30 s of silence, so keep it well under" Type="Variable" Display="advanced" Required="false" Mask="false">10s</Config>
+  <Config Name="Timeout" Target="ROOMS_TIMEOUT" Default="30s" Mode="" Description="Drop a game that has sent nothing for this long; 0 = never" Type="Variable" Display="advanced" Required="false" Mask="false">30s</Config>
+  <Config Name="Login timeout" Target="ROOMS_LOGIN_TIMEOUT" Default="30s" Mode="" Description="Drop a connection that hasn't logged in after this long; 0 = never" Type="Variable" Display="advanced" Required="false" Mask="false">30s</Config>
+  <Config Name="Max connections" Target="ROOMS_MAX_CONNS" Default="1000" Mode="" Description="Connections at once; 0 = no limit" Type="Variable" Display="advanced" Required="false" Mask="false">1000</Config>
+  <Config Name="Max connections per IP" Target="ROOMS_MAX_CONNS_PER_IP" Default="16" Mode="" Description="Connections at once from one address; 0 = no limit" Type="Variable" Display="advanced" Required="false" Mask="false">16</Config>
+  <Config Name="Failed joins per connection" Target="ROOMS_CONN_JOIN_MISSES" Default="5" Mode="" Description="Joins to a code that doesn't exist, per minute, per connection; 0 = no limit" Type="Variable" Display="advanced" Required="false" Mask="false">5</Config>
+  <Config Name="Failed joins per IP" Target="ROOMS_IP_JOIN_MISSES" Default="20" Mode="" Description="Joins to a code that doesn't exist, per minute, from one address; 0 = no limit" Type="Variable" Display="advanced" Required="false" Mask="false">20</Config>
+  <Config Name="Hex log" Target="ROOMS_HEX" Default="false" Mode="" Description="Log every packet in hex, for debugging" Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
+</Container>

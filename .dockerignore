@@ -1,0 +1,9 @@
+.git
+.github
+.env
+scripts
+testdata
+unraid
+**/*_test.go
+*.md
+LICENSE
