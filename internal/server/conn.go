@@ -44,6 +44,11 @@ type conn struct {
 	// set under s.mu
 	code, tag string
 
+	// the hello's version is band3's, which knows the server's own packets
+	band3 bool
+	// when this connection's last port check went
+	portChecked time.Time
+
 	misses bucket // this connection's failed joins
 	// turned away: waiting for the game to hang up, then closing with this
 	turnedAway string
@@ -272,6 +277,13 @@ func (c *conn) handle(typ uint8, body []byte) {
 		// heard from, which is all a pong is for
 	case protocol.JoinRequestType:
 		c.join(body)
+	case protocol.PortCheckRequestType:
+		if !c.band3 {
+			// only band3 is told of port checks; for anyone else it's a type like any unknown one
+			c.s.logf("unknown type %d from %s, ignored", typ, c.name())
+			return
+		}
+		c.portCheck(body)
 	default:
 		c.s.logf("unknown type %d from %s, ignored", typ, c.name())
 	}
@@ -284,6 +296,7 @@ func (c *conn) helloed(hello protocol.ClientHello) {
 		kind = "emulator"
 	}
 	c.s.logf("hello #%d: %s, %q, %q, protocol %d", c.number, kind, hello.Language, hello.Version, hello.Protocol)
+	c.band3 = isBand3(hello.Version)
 	if ok, why := c.s.cfg.versionAllowed(hello.Version); !ok {
 		c.s.logf("turn away #%d: %s", c.number, why)
 		c.turnAway(protocol.EncodeServerHello(protocol.ServerHello{}), "turned away: "+why)
@@ -337,6 +350,10 @@ func (c *conn) loginWith(body []byte) {
 	}
 	c.s.logf("login %s: xuid %016X local %s public %s code %s", c.name(), login.XUID, login.LocalIP, c.public, code)
 	c.sendFrame(protocol.EncodeLoggedIn(protocol.LoggedIn{PublicIP: c.public, Code: code}))
+	if c.band3 {
+		// band3's own packet; RB3Enhanced would hang up on a type it doesn't know
+		c.sendFrame(protocol.EncodeServerFeatures(protocol.ServerFeatures{Features: protocol.FeaturePortCheck}))
+	}
 }
 
 func (c *conn) proofOK(login protocol.ClientLogin) bool {
@@ -425,4 +442,36 @@ func (c *conn) join(body []byte) {
 		c.sendFrame(protocol.EncodeJoinResponse(response))
 		s.logf("join %s -> %s %s: public %s local %s", c.name(), code, hostName, response.PublicIP, response.PrivateIP)
 	}
+}
+
+// portCheck sends the token back in one UDP datagram to the port asked for, on
+// the address this connection comes from and no other, so a game can tell
+// whether players elsewhere reach it there. One per connection per
+// PortCheckEvery.
+func (c *conn) portCheck(body []byte) {
+	request, ok := protocol.DecodePortCheckRequest(body)
+	if !ok {
+		c.close(fmt.Sprintf("short PortCheckRequest (%d bytes)", len(body)))
+		return
+	}
+	if c.login == nil {
+		c.s.logf("port check from %s before logging in, ignored", c.name())
+		return
+	}
+	if request.Port == 0 {
+		c.s.logf("port check from %s: port 0, ignored", c.name())
+		return
+	}
+	now := c.s.cfg.Now()
+	if !c.portChecked.IsZero() && now.Sub(c.portChecked) < PortCheckEvery {
+		c.s.logf("port check from %s: too soon (one per %v), ignored", c.name(), PortCheckEvery)
+		return
+	}
+	c.portChecked = now
+	to := netip.AddrPortFrom(c.ip, request.Port)
+	if err := c.s.cfg.SendProbe(to, protocol.PortProbe(request.Token)); err != nil {
+		c.s.logf("port check %s -> %s failed: %v", c.name(), to, err)
+		return
+	}
+	c.s.logf("port check %s -> %s", c.name(), to)
 }

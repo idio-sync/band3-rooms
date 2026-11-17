@@ -1,6 +1,7 @@
 // Package server is a Liveless Rooms server: games log in for a code, and a
 // game that sends another's code is told where to find it. It never carries
-// game traffic. Behaviour follows band3's tools/liveless_rooms_mock.py.
+// game traffic. Behaviour follows band3's tools/liveless_rooms_mock.py, but for
+// the port check band3 alone is told of (conn.go's portCheck), which the mock doesn't do.
 package server
 
 import (
@@ -53,6 +54,9 @@ func New(cfg Config, log func(string)) (*Server, error) {
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
+	}
+	if cfg.SendProbe == nil {
+		cfg.SendProbe = sendProbe
 	}
 	if log == nil {
 		log = func(string) {}
@@ -237,6 +241,20 @@ func (s *Server) publicIP(ip netip.Addr) netip.Addr {
 		return s.cfg.LANPublicIP
 	}
 	return ip
+}
+
+// sendProbe sends a port check's datagram from a UDP socket of its own, on a
+// port the system picks: nothing listens for an answer, so the server needs no
+// UDP port of its own.
+func sendProbe(to netip.AddrPort, data []byte) error {
+	uc, err := net.DialUDP("udp4", nil, net.UDPAddrFromAddrPort(to))
+	if err != nil {
+		return err
+	}
+	defer uc.Close()
+	_ = uc.SetWriteDeadline(time.Now().Add(probeTimeout))
+	_, err = uc.Write(data)
+	return err
 }
 
 // register gives a logged-in connection a code no one connected has.

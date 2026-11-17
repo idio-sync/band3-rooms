@@ -55,8 +55,10 @@ type Config struct {
 	FrameGap time.Duration
 	// Makes codes; tests set it. nil means random ones.
 	NewCode func() string
-	// Now, for the join limits; tests set it. nil means time.Now.
+	// Now, for the join and port check limits; tests set it. nil means time.Now.
 	Now func() time.Time
+	// Sends a port check's datagram; tests set it. nil means a UDP socket of its own each time.
+	SendProbe func(to netip.AddrPort, data []byte) error
 }
 
 const (
@@ -67,7 +69,21 @@ const (
 	lingerTimeout = 3 * time.Second
 	// frames a game may have waiting to go out; more and it's too far behind
 	outboxSize = 32
+	// a connection's port checks are at least this far apart; more are ignored
+	PortCheckEvery = 30 * time.Second
+	// how long sending a port check's datagram may take
+	probeTimeout = 2 * time.Second
 )
+
+// Band3Version is how band3's hello version starts (case aside): band3 is told
+// of the server's band3-only packets, which RB3Enhanced would close the
+// connection over.
+const Band3Version = "idio-sync/band3"
+
+// isBand3 is whether a hello's version is band3's.
+func isBand3(version string) bool {
+	return strings.HasPrefix(strings.ToLower(version), Band3Version)
+}
 
 // Defaults are the settings the command line starts from.
 func Defaults() Config {
