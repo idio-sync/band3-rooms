@@ -1,0 +1,37 @@
+# band3-rooms as a systemd service, for running the release binary without Docker.
+# Install: the binary at /usr/local/bin/band3-rooms, its settings in
+# /etc/band3-rooms.env (the release's band3-rooms.env, with ROOMS_ADDRESS set),
+# this file in /etc/systemd/system/, then: systemctl enable --now band3-rooms
+# Logs: journalctl -u band3-rooms
+
+[Unit]
+Description=band3-rooms, a Liveless Rooms server
+Documentation=https://github.com/idio-sync/band3-rooms
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=/etc/band3-rooms.env
+ExecStart=/usr/local/bin/band3-rooms
+Restart=always
+RestartSec=5
+
+# It needs no files and no privileges: port 19532 is above 1024
+DynamicUser=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

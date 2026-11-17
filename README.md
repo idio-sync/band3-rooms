@@ -44,6 +44,31 @@ addresses. Docker's published ports keep them for connections from other machine
 log shows every game coming from one `172.x` address, use `network_mode: host` (in
 `docker-compose.yml`) instead.
 
+### A Linux server, without Docker
+
+The lightest way onto a small VPS (a 1 GB free-tier VM included): each
+[release](https://github.com/idio-sync/band3-rooms/releases) has the static binary for
+`amd64` and `arm64`, a systemd unit and the settings file. As root, on `amd64` (`arm64`
+for ARM machines):
+
+```sh
+base=https://github.com/idio-sync/band3-rooms/releases/latest/download
+curl -fL -o /usr/local/bin/band3-rooms $base/band3-rooms-linux-amd64
+chmod 755 /usr/local/bin/band3-rooms
+curl -fL -o /etc/systemd/system/band3-rooms.service $base/band3-rooms.service
+curl -fL -o /etc/band3-rooms.env $base/band3-rooms.env
+nano /etc/band3-rooms.env         # set ROOMS_ADDRESS
+systemctl daemon-reload
+systemctl enable --now band3-rooms
+journalctl -u band3-rooms         # "listening on 0.0.0.0:19532"
+```
+
+It runs as a throwaway user with no access to the rest of the system, restarts if it
+stops, and starts at boot. The release's `SHA256SUMS` lists each file's checksum, to
+compare with `sha256sum /usr/local/bin/band3-rooms`. To update,
+download the binary again and `systemctl restart band3-rooms`; after changing the settings
+file, restart it too.
+
 ### Unraid
 
 Docker tab → **Add Container** → **Template**: paste
@@ -213,7 +238,9 @@ python scripts/crosscheck.py ../band3_recomp
 ```
 
 Images are built by GitHub Actions and pushed to `ghcr.io/idio-sync/band3-rooms`: `latest`
-and `sha-<commit>` from `main`, and `1.2.3` and `1.2` from a `v1.2.3` tag.
+and `sha-<commit>` from `main`, and `1.2.3` and `1.2` from a `v1.2.3` tag. A `v1.2.3` tag
+also makes that GitHub release, with the Linux binaries, `contrib/band3-rooms.service`,
+`.env.example` as `band3-rooms.env`, and `SHA256SUMS`.
 
 ## License
 
