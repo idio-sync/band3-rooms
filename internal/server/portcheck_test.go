@@ -84,7 +84,7 @@ func TestBand3IsToldOfPortChecks(t *testing.T) {
 		c := ts.connect()
 		c.loginAs(version, "host", "192.168.1.2")
 		f := expect(c, protocol.ServerFeaturesType, protocol.DecodeServerFeatures)
-		if f.Features != protocol.FeaturePortCheck {
+		if f.Features != protocol.FeaturePortCheck|protocol.FeatureEcho {
 			t.Fatalf("%q: %+v", version, f)
 		}
 	}

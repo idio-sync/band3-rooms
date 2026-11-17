@@ -50,17 +50,24 @@ const (
 
 // band3's own packets, which RB3Enhanced's protocol doesn't have. RB3Enhanced
 // numbers each direction's packets up from 0, so these are well clear of both
-// directions' numbers. A server sends ServerFeatures only to band3 (a hello
-// version starting "idio-sync/band3"), and band3 sends PortCheckRequest only to
-// a server that sent it, so neither ever reaches a game or server that doesn't
-// know them.
+// directions' numbers. A server sends ServerFeatures and ServerInfo only to
+// band3 (a hello version starting "idio-sync/band3"), and band3 sends
+// PortCheckRequest and EchoRequest only to a server that said it takes them,
+// so none ever reaches a game or server that doesn't know them.
 const (
 	ServerFeaturesType   = 0xB0 // server to client, after LoggedIn
 	PortCheckRequestType = 0xB1 // client to server
+	ServerInfoType       = 0xB2 // server to client, after ServerHello
+	EchoRequestType      = 0xB3 // client to server
+	EchoReplyType        = 0xB4 // server to client
 )
 
-// ServerFeatures.Features: what the server does beyond RB3Enhanced's protocol.
-const FeaturePortCheck = 1 << 0
+// ServerFeatures.Features and ServerInfo.Features: what the server does beyond
+// RB3Enhanced's protocol.
+const (
+	FeaturePortCheck = 1 << 0
+	FeatureEcho      = 1 << 1 // answers EchoRequest, with or without a login
+)
 
 // A port check's token, and the UDP datagram it comes back in: ProbeMagic, then
 // the token.
@@ -91,10 +98,14 @@ const (
 	natPunchSize     = 4
 	featuresSize     = 4
 	portCheckSize    = 2 + TokenSize
+	serverInfoSize   = 4 + ServerVersionField
+	echoSize         = 4
 
 	gamertagField = 16
 	versionField  = 0x30
 	languageField = 3
+	// ServerInfo's version: up to 31 characters and a NUL
+	ServerVersionField = 0x20
 )
 
 type ClientHello struct {
@@ -147,6 +158,25 @@ type NATPunch struct {
 // FeaturePortCheck and any later bits.
 type ServerFeatures struct {
 	Features uint32
+}
+
+// ServerInfo is the server's own version (band3-rooms' release, "0.3.0", or a
+// build's "dev-1a2b3c4") and what it does beyond RB3Enhanced's protocol, sent
+// to band3 right after ServerHello, so a game that only says hello learns them
+// without logging in.
+type ServerInfo struct {
+	Features uint32
+	Version  string
+}
+
+// EchoRequest asks the server to send Sequence straight back in an EchoReply:
+// a round trip for band3 to time, logged in or not.
+type EchoRequest struct {
+	Sequence uint32
+}
+
+type EchoReply struct {
+	Sequence uint32
 }
 
 // PortCheckRequest asks the server to send ProbeMagic and Token in one UDP
@@ -427,6 +457,44 @@ func DecodePortCheckRequest(body []byte) (r PortCheckRequest, ok bool) {
 	r.Port = binary.BigEndian.Uint16(body)
 	copy(r.Token[:], body[2:2+TokenSize])
 	return r, true
+}
+
+func EncodeServerInfo(i ServerInfo) []byte {
+	body := make([]byte, 0, serverInfoSize)
+	body = binary.BigEndian.AppendUint32(body, i.Features)
+	body = append(body, cstr(i.Version, ServerVersionField)...)
+	return Frame(ServerInfoType, body)
+}
+
+func DecodeServerInfo(body []byte) (i ServerInfo, ok bool) {
+	if len(body) < serverInfoSize {
+		return i, false
+	}
+	i.Features = binary.BigEndian.Uint32(body)
+	i.Version = text(body[4 : 4+ServerVersionField])
+	return i, true
+}
+
+func EncodeEchoRequest(r EchoRequest) []byte {
+	return Frame(EchoRequestType, binary.BigEndian.AppendUint32(nil, r.Sequence))
+}
+
+func DecodeEchoRequest(body []byte) (r EchoRequest, ok bool) {
+	if len(body) < echoSize {
+		return r, false
+	}
+	return EchoRequest{Sequence: binary.BigEndian.Uint32(body)}, true
+}
+
+func EncodeEchoReply(r EchoReply) []byte {
+	return Frame(EchoReplyType, binary.BigEndian.AppendUint32(nil, r.Sequence))
+}
+
+func DecodeEchoReply(body []byte) (r EchoReply, ok bool) {
+	if len(body) < echoSize {
+		return r, false
+	}
+	return EchoReply{Sequence: binary.BigEndian.Uint32(body)}, true
 }
 
 // PortProbe is the datagram a port check sends: not a frame, just the magic

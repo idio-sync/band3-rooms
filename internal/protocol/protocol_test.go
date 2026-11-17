@@ -190,6 +190,31 @@ func TestGoldenPortCheckRequest(t *testing.T) {
 	}
 }
 
+func TestGoldenServerInfo(t *testing.T) {
+	g := readGolden(t)
+	i := roundtrip(t, g["server_info"], ServerInfoType, DecodeServerInfo, EncodeServerInfo)
+	if i != (ServerInfo{Features: FeaturePortCheck | FeatureEcho, Version: "0.3.0"}) {
+		t.Fatalf("%+v", i)
+	}
+	// a version too long for the field keeps room for its NUL
+	_, body := splitFrame(t, EncodeServerInfo(ServerInfo{Version: strings.Repeat("v", 40)}))
+	if i, _ := DecodeServerInfo(body); i.Version != strings.Repeat("v", ServerVersionField-1) {
+		t.Fatal(i.Version)
+	}
+}
+
+func TestGoldenEcho(t *testing.T) {
+	g := readGolden(t)
+	r := roundtrip(t, g["echo_request"], EchoRequestType, DecodeEchoRequest, EncodeEchoRequest)
+	if r.Sequence != 0x01020304 {
+		t.Fatalf("%+v", r)
+	}
+	a := roundtrip(t, g["echo_reply"], EchoReplyType, DecodeEchoReply, EncodeEchoReply)
+	if a.Sequence != 0x01020304 {
+		t.Fatalf("%+v", a)
+	}
+}
+
 func TestGoldenPortCheckProbe(t *testing.T) {
 	g := readGolden(t)
 	if got := PortProbe(goldenKey); !bytes.Equal(got, g["port_check_probe"]) {
@@ -280,6 +305,7 @@ func TestGoldenAllVectorsKnown(t *testing.T) {
 		"ping": true, "pong": true, "proof": true, "xuid_host": true, "xuid_joiner": true,
 		"xuid_User": true, "sha1_abc": true, "hmac_rfc2202_1": true, "hmac_rfc2202_2": true,
 		"server_features": true, "port_check_request": true, "port_check_probe": true,
+		"server_info": true, "echo_request": true, "echo_reply": true,
 	}
 	for name := range readGolden(t) {
 		if !known[name] {

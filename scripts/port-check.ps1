@@ -130,10 +130,17 @@ try {
   $frame = New-Frame 1 $login.ToArray()
   $stream.Write($frame, 0, $frame.Length)
 
-  try {
-    $reply = Read-Frame $stream
-  } catch {
-    throw "the server refused the login: -Server must be the name exactly as the server's ROOMS_ADDRESS has it"
+  # band3-rooms 0.3.0 and later say what they are right after the hello
+  $serverVersion = ''
+  while ($true) {
+    try {
+      $reply = Read-Frame $stream
+    } catch {
+      throw "the server refused the login: -Server must be the name exactly as the server's ROOMS_ADDRESS has it"
+    }
+    if ($reply[0] -ne 0xB2) { break }
+    $serverVersion = [Text.Encoding]::ASCII.GetString($reply[1], 4, 32).TrimEnd([char]0)
+    Write-Host "Server: band3-rooms $serverVersion."
   }
   if ($reply[0] -ne 1) { throw "expected the login reply, got packet type $($reply[0])" }
   $body = $reply[1]

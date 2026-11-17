@@ -49,6 +49,10 @@ type Config struct {
 	// Log every frame in and out in hex.
 	Hex bool
 
+	// The server's own version, which band3 is told in ServerInfo (up to 31
+	// characters): the command's build version.
+	Version string
+
 	// Frames to one game are sent at least this far apart, since RB3Enhanced
 	// reads one packet per game frame and loses a second one that arrives with
 	// it. 0 means the default; tests shorten it.
@@ -73,6 +77,9 @@ const (
 	PortCheckEvery = 30 * time.Second
 	// how long sending a port check's datagram may take
 	probeTimeout = 2 * time.Second
+	// echoes a connection is answered; more are ignored (band3's connection
+	// test sends a handful)
+	EchoLimit = 32
 )
 
 // Band3Version is how band3's hello version starts (case aside): band3 is told

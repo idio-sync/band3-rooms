@@ -48,6 +48,8 @@ type conn struct {
 	band3 bool
 	// when this connection's last port check went
 	portChecked time.Time
+	// echoes answered (EchoLimit)
+	echoes int
 
 	misses bucket // this connection's failed joins
 	// turned away: waiting for the game to hang up, then closing with this
@@ -284,6 +286,12 @@ func (c *conn) handle(typ uint8, body []byte) {
 			return
 		}
 		c.portCheck(body)
+	case protocol.EchoRequestType:
+		if !c.band3 {
+			c.s.logf("unknown type %d from %s, ignored", typ, c.name())
+			return
+		}
+		c.echo(body)
 	default:
 		c.s.logf("unknown type %d from %s, ignored", typ, c.name())
 	}
@@ -305,7 +313,16 @@ func (c *conn) helloed(hello protocol.ClientHello) {
 	c.sendFrame(protocol.EncodeServerHello(protocol.ServerHello{
 		Allowed: true, NeedsProof: c.s.cfg.RequireProof, ProofKey: c.proofKey,
 	}))
+	if c.band3 {
+		// band3's own packet, which it ignores if it's older than it (and
+		// RB3Enhanced would hang up on): what this server is, before any login,
+		// for band3's connection test
+		c.sendFrame(protocol.EncodeServerInfo(protocol.ServerInfo{Features: serverFeatures, Version: c.s.cfg.Version}))
+	}
 }
+
+// what this server does beyond RB3Enhanced's protocol, as band3 is told
+const serverFeatures = protocol.FeaturePortCheck | protocol.FeatureEcho
 
 // turnAway sends a last frame, then waits a little for the game to hang up
 // (both RB3Enhanced and band3 do on a ServerHello that doesn't allow them)
@@ -352,7 +369,7 @@ func (c *conn) loginWith(body []byte) {
 	c.sendFrame(protocol.EncodeLoggedIn(protocol.LoggedIn{PublicIP: c.public, Code: code}))
 	if c.band3 {
 		// band3's own packet; RB3Enhanced would hang up on a type it doesn't know
-		c.sendFrame(protocol.EncodeServerFeatures(protocol.ServerFeatures{Features: protocol.FeaturePortCheck}))
+		c.sendFrame(protocol.EncodeServerFeatures(protocol.ServerFeatures{Features: serverFeatures}))
 	}
 }
 
@@ -442,6 +459,25 @@ func (c *conn) join(body []byte) {
 		c.sendFrame(protocol.EncodeJoinResponse(response))
 		s.logf("join %s -> %s %s: public %s local %s", c.name(), code, hostName, response.PublicIP, response.PrivateIP)
 	}
+}
+
+// echo sends the request's sequence straight back, logged in or not, for band3
+// to time the round trip: up to EchoLimit a connection.
+func (c *conn) echo(body []byte) {
+	request, ok := protocol.DecodeEchoRequest(body)
+	if !ok {
+		c.close(fmt.Sprintf("short EchoRequest (%d bytes)", len(body)))
+		return
+	}
+	if c.echoes >= EchoLimit {
+		if c.echoes == EchoLimit {
+			c.s.logf("echo from %s: over %d, ignored from now on", c.name(), EchoLimit)
+		}
+		c.echoes = EchoLimit + 1
+		return
+	}
+	c.echoes++
+	c.sendFrame(protocol.EncodeEchoReply(protocol.EchoReply{Sequence: request.Sequence}))
 }
 
 // portCheck sends the token back in one UDP datagram to the port asked for, on

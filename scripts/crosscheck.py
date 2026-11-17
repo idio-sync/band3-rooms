@@ -2,8 +2,8 @@
 
 Imports the encode/decode functions from band3's tools/liveless_rooms_mock.py (the
 codec held to the same golden vectors as band3's C++ client), logs two games in
-(one band3, one RB3Enhanced), has the band3 one check a port on this machine, and
-has the second join the first by code, then miss one. Exits non-zero on any
+(one band3, one RB3Enhanced), has the band3 one time an echo and check a port on
+this machine, and has the second join the first by code, then miss one. Exits non-zero on any
 surprise. The server has to be on this machine, since the port check's datagram
 comes back to the address the game connected from.
 
@@ -65,6 +65,11 @@ def main(argv):
             hello = self.expect(rooms.SERVER_HELLO, rooms.decode_server_hello)
             if not hello.allowed:
                 raise SystemExit(f"{self.name}: turned away")
+            if version.lower().startswith("idio-sync/band3"):
+                # band3, and only band3, is told what the server is before logging in
+                info = self.expect(rooms.SERVER_INFO, rooms.decode_server_info)
+                if not info.features & rooms.FEATURE_ECHO or not info.version:
+                    raise SystemExit(f"{self.name}: server info {info}")
             xuid = rooms.rooms_xuid(gamertag)
             proof = rooms.login_proof(hello.proof_key, args.address, xuid) if hello.needs_proof else b""
             self.send(rooms.encode_client_login(rooms.ClientLogin(xuid, gamertag, local_ipv4, proof)))
@@ -77,6 +82,9 @@ def main(argv):
     features = host.expect(rooms.SERVER_FEATURES, rooms.decode_server_features)
     if not features.features & rooms.FEATURE_PORT_CHECK:
         raise SystemExit(f"features {features}: no port check")
+    host.send(rooms.encode_echo_request(rooms.EchoRequest(0xC0FFEE)))
+    if host.expect(rooms.ECHO_REPLY, rooms.decode_echo_reply).sequence != 0xC0FFEE:
+        raise SystemExit("the echo came back with another sequence")
     joiner_in = joiner.login("crossjoin", "192.168.1.3", "3.2.0-crosscheck")
     if host_in.code == joiner_in.code:
         raise SystemExit("both games got the same code")

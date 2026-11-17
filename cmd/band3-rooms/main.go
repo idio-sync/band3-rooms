@@ -48,6 +48,7 @@ func run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	}
 
 	logger := newLogger(stdout)
+	o.cfg.Version = buildVersion()
 	srv, err := server.New(o.cfg, logger)
 	if err != nil {
 		fmt.Fprintf(stderr, "band3-rooms: %v\n", err)

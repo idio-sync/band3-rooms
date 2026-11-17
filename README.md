@@ -14,8 +14,8 @@ Each game logs in over TCP and gets a short room code (five letters and digits, 
 address on its own network; the host's game is told to send a packet towards the joiner.
 The games then connect to each other directly, on UDP 9103.
 
-That's all it does, but for one thing for band3 (the [port check](#the-port-check)). It
-never carries game traffic, so:
+That's all it does, but for two things for band3 (the [port check](#the-port-check) and
+[connection test](#the-connection-test)). It never carries game traffic, so:
 
 - **Whoever hosts needs UDP 9103 reachable** from the players joining them: forwarded on
   their router (band3 can do it by itself with UPnP), as without Rooms. band3 asks the
@@ -186,6 +186,20 @@ a port forwarded by hand. Allow PowerShell through Windows Firewall if asked, or
 reads as closed. It says when the server doesn't check ports, and when `-Server` isn't the
 name the server signs logins for.
 
+## The connection test
+
+band3's Settings has **Test connection** under its Rooms server: it connects, says hello as
+the game does, and never logs in, so it takes no code and registers no name. The server
+tells band3 what it is right after the hello (a packet of type `0xB2`: its version, as
+`-version` prints it, and what it does beyond RB3Enhanced's protocol), and band3 times a
+few echoes (it sends type `0xB3` with a number, the server sends it straight back as type
+`0xB4`). band3 shows the round trips' median as its ping, with the version.
+
+As with the port check, only a game whose version starts with `idio-sync/band3` is sent
+the server's info, and band3 sends echoes only to a server that said it answers them; from
+anything else an echo is an unknown packet. Older band3 builds that log in are sent the info
+too, and ignore it. A connection is answered 32 echoes; more are ignored.
+
 ## Settings
 
 Each setting is a flag and an environment variable; the flag wins. Times take Go durations
@@ -223,7 +237,8 @@ across all its connections and reconnections (`-ip-join-misses`). Each allows th
 minute, refilling steadily. Over either, joins are refused without looking the code up, so
 guessing on learns nothing. Joins that find their game don't count.
 
-Port checks are one per connection per 30 seconds ([The port check](#the-port-check)).
+Port checks are one per connection per 30 seconds ([The port check](#the-port-check)), and
+echoes 32 per connection ([The connection test](#the-connection-test)).
 
 Also: packets over 774 bytes (the protocol's limit), or anything that isn't the protocol,
 close the connection. So do anything but a hello first, no login within `-login-timeout`,
@@ -258,8 +273,9 @@ The Docker image turns it on inside the container only, for its `HEALTHCHECK`.
 ## Not in this version
 
 - UDP hole punching or relaying for hosts who can't open UDP 9103. The server passes on the
-  protocol's NAT punch request (the host's game sends one packet towards the joiner), and
-  checks band3's port ([The port check](#the-port-check)), and that's all.
+  protocol's NAT punch request (the host's game sends one packet towards the joiner),
+  checks band3's port ([The port check](#the-port-check)) and answers its connection test
+  ([The connection test](#the-connection-test)), and that's all.
 - Presence, friends lists, or joining from outside the game (the protocol's join type 1).
 - Persistence: codes that survive a reconnect or a restart.
 - Checking real Xbox 360s' signed proofs.
@@ -276,7 +292,7 @@ to. The tests check every one, then run the server in-process against scripted c
 
 `scripts/crosscheck.py` drives a running server with band3's own Python codec
 (`tools/liveless_rooms_mock.py` from a band3 checkout): two logins (band3 and RB3Enhanced),
-a port check on this machine, and a join by code.
+the server's info and an echo, a port check on this machine, and a join by code.
 
 ```sh
 ./band3-rooms -address 127.0.0.1 -listen 127.0.0.1:19532 &

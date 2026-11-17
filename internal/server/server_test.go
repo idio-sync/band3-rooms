@@ -219,10 +219,23 @@ func expect[T any](c *client, typ uint8, decode func([]byte) (T, bool)) T {
 	return msg
 }
 
+// hello says hello, and takes the ServerInfo that follows for band3.
 func (c *client) hello(emulator bool, version string) protocol.ServerHello {
 	c.t.Helper()
+	h, _ := c.helloInfo(emulator, version)
+	return h
+}
+
+// helloInfo is hello, with the ServerInfo band3 is sent (zero for anyone else).
+func (c *client) helloInfo(emulator bool, version string) (protocol.ServerHello, protocol.ServerInfo) {
+	c.t.Helper()
 	c.send(protocol.EncodeClientHello(protocol.ClientHello{Emulator: emulator, Language: "eng", Version: version}))
-	return expect(c, protocol.ServerHelloType, protocol.DecodeServerHello)
+	h := expect(c, protocol.ServerHelloType, protocol.DecodeServerHello)
+	var info protocol.ServerInfo
+	if h.Allowed && isBand3(version) {
+		info = expect(c, protocol.ServerInfoType, protocol.DecodeServerInfo)
+	}
+	return h, info
 }
 
 func loginFrame(h protocol.ServerHello, address, tag, local string) []byte {
