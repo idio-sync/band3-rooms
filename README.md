@@ -172,6 +172,20 @@ port is open if the datagram arrives within 3 seconds, and closed if it doesn't.
 
 The log has a line for each one: `port check #1 ("alice") -> 198.51.100.20:9103`.
 
+**Checking without the game:** `scripts/port-check.ps1` (Windows PowerShell 5.1 or
+PowerShell 7) logs in as a band3 client, shows the room code and the public address the
+server sees, and runs the check on this PC:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\port-check.ps1 -Server rooms.example.com
+```
+
+It listens on UDP 9103 itself (`-UdpPort` for another), so close band3 first. That also
+means a port band3 opens on the router by itself (UPnP) isn't open while it runs: it checks
+a port forwarded by hand. Allow PowerShell through Windows Firewall if asked, or the port
+reads as closed. It says when the server doesn't check ports, and when `-Server` isn't the
+name the server signs logins for.
+
 ## Settings
 
 Each setting is a flag and an environment variable; the flag wins. Times take Go durations
