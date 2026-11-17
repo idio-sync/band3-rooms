@@ -1,9 +1,11 @@
 """crosscheck: drive a running band3-rooms with band3's own Python codec.
 
 Imports the encode/decode functions from band3's tools/liveless_rooms_mock.py (the
-codec held to the same golden vectors as band3's C++ client), logs two games in,
-and has the second join the first by code, then miss one. Exits non-zero on any
-surprise.
+codec held to the same golden vectors as band3's C++ client), logs two games in
+(one band3, one RB3Enhanced), has the band3 one check a port on this machine, and
+has the second join the first by code, then miss one. Exits non-zero on any
+surprise. The server has to be on this machine, since the port check's datagram
+comes back to the address the game connected from.
 
   go build -o band3-rooms ./cmd/band3-rooms
   ./band3-rooms -address 127.0.0.1 -listen 127.0.0.1:19532
@@ -71,9 +73,26 @@ def main(argv):
     host = Game("host")
     joiner = Game("joiner")
     host_in = host.login("crosshost", "192.168.1.2", "idio-sync/band3 crosscheck")
+    # band3, and only band3, is told the server checks ports
+    features = host.expect(rooms.SERVER_FEATURES, rooms.decode_server_features)
+    if not features.features & rooms.FEATURE_PORT_CHECK:
+        raise SystemExit(f"features {features}: no port check")
     joiner_in = joiner.login("crossjoin", "192.168.1.3", "3.2.0-crosscheck")
     if host_in.code == joiner_in.code:
         raise SystemExit("both games got the same code")
+
+    # the probe comes back to the address the game connected from, on the port asked for
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp.bind((args.host, 0))
+    udp.settimeout(5)
+    token = os.urandom(rooms.TOKEN_SIZE)
+    host.send(rooms.encode_port_check_request(
+        rooms.PortCheckRequest(udp.getsockname()[1], token)))
+    probe, sender = udp.recvfrom(64)
+    if rooms.decode_port_probe(probe) != token:
+        raise SystemExit(f"port check sent {probe.hex()} from {sender}")
+    print(f"host <- port check probe on {udp.getsockname()[1]} from {sender[0]}")
+    udp.close()
 
     # typed in lower case, as a player might
     joiner.send(rooms.encode_join_request(rooms.JoinRequest(host_in.code.lower())))

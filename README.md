@@ -14,10 +14,12 @@ Each game logs in over TCP and gets a short room code (five letters and digits, 
 address on its own network; the host's game is told to send a packet towards the joiner.
 The games then connect to each other directly, on UDP 9103.
 
-That's all it does. It never carries game traffic, so:
+That's all it does, but for one thing for band3 (the [port check](#the-port-check)). It
+never carries game traffic, so:
 
 - **Whoever hosts needs UDP 9103 reachable** from the players joining them: forwarded on
-  their router (band3 can do it by itself with UPnP), as without Rooms.
+  their router (band3 can do it by itself with UPnP), as without Rooms. band3 asks the
+  server to check that it is.
 - Players behind the same public address as the host are sent to the host's LAN address.
   The server sends both addresses and the game picks: band3 and RB3Enhanced both use the
   LAN one when the host's public address is their own.
@@ -145,6 +147,31 @@ shows *the server turned the connection away* and doesn't try again. The version
 whatever the client says it is, so this sorts honest clients; it doesn't stop anyone who
 sets out to get around it.
 
+## The port check
+
+A host whose UDP port is closed only finds out when a friend's join fails on the friend's
+side. So band3 asks the server to check: each time the game goes online (and when the
+player picks **CHECK PORT** in its Rooms menu), it sends the port it plays on and a random
+16-byte token, and the server sends one UDP datagram, `B3PC` and the token, to that port
+**on the address the game's connection comes from**, never any other. The game says the
+port is open if the datagram arrives within 3 seconds, and closed if it doesn't.
+
+- **Only band3.** It's band3's own addition to RB3Enhanced's protocol, which has no room for
+  it: right after logging a game in, the server tells it it checks ports (a packet of type
+  `0xB0`), but only when the game's version starts with `idio-sync/band3` (any case).
+  RB3Enhanced closes its connection on a packet it doesn't know, so it's never sent one,
+  and band3 asks (type `0xB1`) only a server that said it checks, so it never asks
+  RBEnhanced's server or an older band3-rooms. Anything else that sends the request gets
+  what any unknown packet gets: a log line, and nothing else.
+- **Limits.** One check per connection per 30 seconds; more are ignored (and logged). Port
+  0 is ignored. The datagram goes out from a port the system picks; nothing answers it, so
+  the server needs no inbound port beyond TCP 19532.
+- **On the server's own network** a game connects from its LAN address, so the datagram goes
+  to that and arrives whatever the router does: the check means something for players
+  outside.
+
+The log has a line for each one: `port check #1 ("alice") -> 198.51.100.20:9103`.
+
 ## Settings
 
 Each setting is a flag and an environment variable; the flag wins. Times take Go durations
@@ -182,6 +209,8 @@ across all its connections and reconnections (`-ip-join-misses`). Each allows th
 minute, refilling steadily. Over either, joins are refused without looking the code up, so
 guessing on learns nothing. Joins that find their game don't count.
 
+Port checks are one per connection per 30 seconds ([The port check](#the-port-check)).
+
 Also: packets over 774 bytes (the protocol's limit), or anything that isn't the protocol,
 close the connection. So do anything but a hello first, no login within `-login-timeout`,
 nothing heard within `-timeout`, and a game so far behind that 32 packets wait for it.
@@ -197,13 +226,15 @@ One line per event on stdout, nothing on disk:
 2026-11-16 11:51:56.920 connect #1 from 198.51.100.20:54480
 2026-11-16 11:51:56.921 hello #1: emulator, "eng", "idio-sync/band3 v0.4.0", protocol 0
 2026-11-16 11:51:56.922 login #1 ("alice"): xuid 0009DF84DB89BDC5 local 192.168.1.2 public 198.51.100.20 code 2M3ER
+2026-11-16 11:51:58.130 port check #1 ("alice") -> 198.51.100.20:9103
 2026-11-16 11:51:57.337 join #2 ("bob") -> 2M3ER #1 ("alice"): public 198.51.100.20 local 192.168.1.2
 2026-11-16 11:51:57.542 deny #2 ("bob") -> "ZZZZZ": no such code
 2026-11-16 11:52:40.101 close #1 ("alice"): client disconnected
 ```
 
 Other lines: `refuse` (over a connection limit), `turn away` (version), `bad proof`,
-`ping timeout`, and `close` with its reason.
+`ping timeout`, `port check from ...: too soon` (and the like, for checks ignored), and
+`close` with its reason.
 
 ## Health
 
@@ -214,7 +245,7 @@ The Docker image turns it on inside the container only, for its `HEALTHCHECK`.
 
 - UDP hole punching or relaying for hosts who can't open UDP 9103. The server passes on the
   protocol's NAT punch request (the host's game sends one packet towards the joiner), and
-  that's all.
+  checks band3's port ([The port check](#the-port-check)), and that's all.
 - Presence, friends lists, or joining from outside the game (the protocol's join type 1).
 - Persistence: codes that survive a reconnect or a restart.
 - Checking real Xbox 360s' signed proofs.
@@ -230,7 +261,8 @@ copied unchanged: the packet vectors band3's C++ client and its Python mock serv
 to. The tests check every one, then run the server in-process against scripted clients.
 
 `scripts/crosscheck.py` drives a running server with band3's own Python codec
-(`tools/liveless_rooms_mock.py` from a band3 checkout): two logins and a join by code.
+(`tools/liveless_rooms_mock.py` from a band3 checkout): two logins (band3 and RB3Enhanced),
+a port check on this machine, and a join by code.
 
 ```sh
 ./band3-rooms -address 127.0.0.1 -listen 127.0.0.1:19532 &
