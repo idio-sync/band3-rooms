@@ -48,6 +48,28 @@ const (
 	NATPunchType     = 5
 )
 
+// band3's own packets, which RB3Enhanced's protocol doesn't have. RB3Enhanced
+// numbers each direction's packets up from 0, so these are well clear of both
+// directions' numbers. A server sends ServerFeatures only to band3 (a hello
+// version starting "idio-sync/band3"), and band3 sends PortCheckRequest only to
+// a server that sent it, so neither ever reaches a game or server that doesn't
+// know them.
+const (
+	ServerFeaturesType   = 0xB0 // server to client, after LoggedIn
+	PortCheckRequestType = 0xB1 // client to server
+)
+
+// ServerFeatures.Features: what the server does beyond RB3Enhanced's protocol.
+const FeaturePortCheck = 1 << 0
+
+// A port check's token, and the UDP datagram it comes back in: ProbeMagic, then
+// the token.
+const (
+	TokenSize  = 16
+	ProbeMagic = "B3PC"
+	ProbeSize  = len(ProbeMagic) + TokenSize
+)
+
 // JoinResponse.JoinType: a code the player entered, or a join from outside the game.
 const (
 	JoinByCode   = 0
@@ -67,6 +89,8 @@ const (
 	joinResponseSize = 1 + 16 + 8 + 4 + 4
 	joinDeniedSize   = 1
 	natPunchSize     = 4
+	featuresSize     = 4
+	portCheckSize    = 2 + TokenSize
 
 	gamertagField = 16
 	versionField  = 0x30
@@ -117,6 +141,20 @@ type JoinDenied struct {
 
 type NATPunch struct {
 	PublicIP netip.Addr
+}
+
+// ServerFeatures says what the server does beyond RB3Enhanced's protocol, as
+// FeaturePortCheck and any later bits.
+type ServerFeatures struct {
+	Features uint32
+}
+
+// PortCheckRequest asks the server to send ProbeMagic and Token in one UDP
+// datagram to Port on the address the request came from, so the game can tell
+// whether players elsewhere reach it there.
+type PortCheckRequest struct {
+	Port  uint16
+	Token [TokenSize]byte
 }
 
 // Frame builds a whole packet: header then body.
@@ -362,6 +400,49 @@ func DecodeNATPunch(body []byte) (p NATPunch, ok bool) {
 		return p, false
 	}
 	return NATPunch{PublicIP: addr4(body)}, true
+}
+
+func EncodeServerFeatures(f ServerFeatures) []byte {
+	return Frame(ServerFeaturesType, binary.BigEndian.AppendUint32(nil, f.Features))
+}
+
+func DecodeServerFeatures(body []byte) (f ServerFeatures, ok bool) {
+	if len(body) < featuresSize {
+		return f, false
+	}
+	return ServerFeatures{Features: binary.BigEndian.Uint32(body)}, true
+}
+
+func EncodePortCheckRequest(r PortCheckRequest) []byte {
+	body := make([]byte, 0, portCheckSize)
+	body = binary.BigEndian.AppendUint16(body, r.Port)
+	body = append(body, r.Token[:]...)
+	return Frame(PortCheckRequestType, body)
+}
+
+func DecodePortCheckRequest(body []byte) (r PortCheckRequest, ok bool) {
+	if len(body) < portCheckSize {
+		return r, false
+	}
+	r.Port = binary.BigEndian.Uint16(body)
+	copy(r.Token[:], body[2:2+TokenSize])
+	return r, true
+}
+
+// PortProbe is the datagram a port check sends: not a frame, just the magic
+// and the token.
+func PortProbe(token [TokenSize]byte) []byte {
+	return append([]byte(ProbeMagic), token[:]...)
+}
+
+// DecodePortProbe is the token in a port check's datagram; ok is false for
+// anything else, a longer datagram included.
+func DecodePortProbe(data []byte) (token [TokenSize]byte, ok bool) {
+	if len(data) != ProbeSize || string(data[:len(ProbeMagic)]) != ProbeMagic {
+		return token, false
+	}
+	copy(token[:], data[len(ProbeMagic):])
+	return token, true
 }
 
 // LoginProof is what an emulated game puts at the start of its login's proof:

@@ -174,6 +174,54 @@ func TestGoldenNATPunch(t *testing.T) {
 	}
 }
 
+func TestGoldenServerFeatures(t *testing.T) {
+	g := readGolden(t)
+	f := roundtrip(t, g["server_features"], ServerFeaturesType, DecodeServerFeatures, EncodeServerFeatures)
+	if f.Features != FeaturePortCheck {
+		t.Fatalf("%+v", f)
+	}
+}
+
+func TestGoldenPortCheckRequest(t *testing.T) {
+	g := readGolden(t)
+	r := roundtrip(t, g["port_check_request"], PortCheckRequestType, DecodePortCheckRequest, EncodePortCheckRequest)
+	if r.Port != 9103 || r.Token != goldenKey {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestGoldenPortCheckProbe(t *testing.T) {
+	g := readGolden(t)
+	if got := PortProbe(goldenKey); !bytes.Equal(got, g["port_check_probe"]) {
+		t.Fatalf("%X", got)
+	}
+	token, ok := DecodePortProbe(g["port_check_probe"])
+	if !ok || token != goldenKey {
+		t.Fatalf("%X %v", token, ok)
+	}
+	probe := g["port_check_probe"]
+	for _, bad := range [][]byte{probe[:ProbeSize-1], append(bytes.Clone(probe), 0), append([]byte("B3PX"), probe[4:]...)} {
+		if _, ok := DecodePortProbe(bad); ok {
+			t.Errorf("%X decoded", bad)
+		}
+	}
+}
+
+// band3's packets keep clear of RB3Enhanced's types, both directions' of them.
+func TestBand3TypesAreClearOfRB3Enhanceds(t *testing.T) {
+	for _, typ := range []uint8{ServerFeaturesType, PortCheckRequestType} {
+		for _, theirs := range []uint8{ClientHelloType, ClientLoginType, PongType, JoinRequestType,
+			ServerHelloType, LoggedInType, PingType, JoinResponseType, JoinDeniedType, NATPunchType} {
+			if typ == theirs {
+				t.Errorf("type %d is RB3Enhanced's", typ)
+			}
+		}
+	}
+	if ServerFeaturesType == PortCheckRequestType {
+		t.Error("band3's two packets share a type")
+	}
+}
+
 func TestGoldenPingPong(t *testing.T) {
 	g := readGolden(t)
 	if !bytes.Equal(PingFrame, g["ping"]) || !bytes.Equal(PongFrame, g["pong"]) {
@@ -231,6 +279,7 @@ func TestGoldenAllVectorsKnown(t *testing.T) {
 		"join_request": true, "join_response": true, "join_denied": true, "nat_punch": true,
 		"ping": true, "pong": true, "proof": true, "xuid_host": true, "xuid_joiner": true,
 		"xuid_User": true, "sha1_abc": true, "hmac_rfc2202_1": true, "hmac_rfc2202_2": true,
+		"server_features": true, "port_check_request": true, "port_check_probe": true,
 	}
 	for name := range readGolden(t) {
 		if !known[name] {
