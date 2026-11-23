@@ -222,6 +222,7 @@ Each setting is a flag and an environment variable; the flag wins. Times take Go
 | `-conn-join-misses` | `ROOMS_CONN_JOIN_MISSES` | `5` | failed joins (no such code) one connection may make per minute |
 | `-ip-join-misses` | `ROOMS_IP_JOIN_MISSES` | `20` | failed joins all connections from one IP address may make per minute |
 | `-health` | `ROOMS_HEALTH` | | `host:port` for the health endpoint; off when blank (the Docker image sets `127.0.0.1:19580`) |
+| `-stats` | `ROOMS_STATS` | | `host:port` for the stats endpoint, for a public status page; off when blank |
 | `-hex` | `ROOMS_HEX` | `false` | log every packet in and out in hex |
 | `-healthcheck` | | | ask a running server's health endpoint and exit 0 if it answers (Docker's `HEALTHCHECK`) |
 | `-version` | | | print the version and exit |
@@ -269,6 +270,16 @@ Other lines: `refuse` (over a connection limit), `turn away` (version), `bad pro
 
 With `-health` set, `GET /healthz` answers `{"status":"ok","connections":3,"logged_in":2}`.
 The Docker image turns it on inside the container only, for its `HEALTHCHECK`.
+
+## Stats
+
+With `-stats` set, `GET /stats` answers
+`{"version":"v1.2.0","players_online":2,"open_rooms":2}`, for a status page such as
+rockband.idiosynchronic.com's. `players_online` is the games logged in and `open_rooms` the
+room codes held; every logged-in game holds one code, so they're the same number for now. It
+says nothing about who's on. It's off by default. Bind it to localhost
+(`ROOMS_STATS=127.0.0.1:19533`) and put a web server in front of it if it should be public;
+set to the same address as `-health`, one listener answers both.
 
 ## Not in this version
 

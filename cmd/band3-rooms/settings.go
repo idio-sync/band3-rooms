@@ -18,6 +18,7 @@ type options struct {
 	cfg         server.Config
 	listen      string
 	health      string
+	stats       string
 	healthcheck bool
 	version     bool
 }
@@ -39,6 +40,7 @@ var envNames = map[string]string{
 	"deny-versions":    "ROOMS_DENY_VERSIONS",
 	"lan-public-ip":    "ROOMS_LAN_PUBLIC_IP",
 	"health":           "ROOMS_HEALTH",
+	"stats":            "ROOMS_STATS",
 	"hex":              "ROOMS_HEX",
 }
 
@@ -73,6 +75,9 @@ func parseArgs(args []string, getenv func(string) string, out io.Writer) (option
 	fs.Var((*ipValue)(&c.LANPublicIP), "lan-public-ip",
 		"the public IPv4 to give games connecting from a private or loopback address (the server's own)")
 	fs.StringVar(&o.health, "health", "", "host:port for an HTTP health endpoint (GET /healthz); empty: off")
+	fs.StringVar(&o.stats, "stats", "",
+		"host:port for an HTTP stats endpoint (GET /stats: version, players online, open rooms), "+
+			"for a status page; keep it on localhost behind a proxy; empty: off")
 	fs.BoolVar(&c.Hex, "hex", false, "log every frame in and out in hex")
 	fs.BoolVar(&o.healthcheck, "healthcheck", false, "check the -health endpoint of a running server and exit 0 if it's up")
 	fs.BoolVar(&o.version, "version", false, "print the version and exit")

@@ -64,18 +64,25 @@ func run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	var health *http.Server
-	healthErr := make(chan error, 1)
-	if o.health != "" {
-		hl, err := net.Listen("tcp", o.health)
+	// the health and stats endpoints, each on its own address, or sharing one
+	var webs []*http.Server
+	webErr := make(chan error, 1)
+	for _, w := range webEndpoints(o, srv) {
+		wl, err := net.Listen("tcp", w.addr)
 		if err != nil {
+			for _, s := range webs {
+				s.Close()
+			}
 			ln.Close()
-			fmt.Fprintf(stderr, "band3-rooms: can't listen on %s for health: %v\n", o.health, err)
+			fmt.Fprintf(stderr, "band3-rooms: can't listen on %s for %s: %v\n", w.addr, w.what, err)
 			return 1
 		}
-		health = &http.Server{Handler: healthHandler(srv), ReadHeaderTimeout: 5 * time.Second}
-		logger(fmt.Sprintf("health on http://%s/healthz", hl.Addr()))
-		go func() { healthErr <- health.Serve(hl) }()
+		web := &http.Server{Handler: w.handler, ReadHeaderTimeout: 5 * time.Second}
+		webs = append(webs, web)
+		for _, path := range w.paths {
+			logger(fmt.Sprintf("%s on http://%s%s", w.what, wl.Addr(), path))
+		}
+		go func() { webErr <- web.Serve(wl) }()
 	}
 
 	served := make(chan error, 1)
@@ -88,15 +95,15 @@ func run(args []string, getenv func(string) string, stdout, stderr io.Writer) in
 	case err := <-served:
 		logger(fmt.Sprintf("serving stopped: %v", err))
 		code = 1
-	case err := <-healthErr:
-		logger(fmt.Sprintf("health endpoint stopped: %v", err))
+	case err := <-webErr:
+		logger(fmt.Sprintf("HTTP endpoint stopped: %v", err))
 		code = 1
 	}
 	stop()
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if health != nil {
-		_ = health.Shutdown(shutdown)
+	for _, web := range webs {
+		_ = web.Shutdown(shutdown)
 	}
 	if err := srv.Shutdown(shutdown); err != nil {
 		logger(fmt.Sprintf("connections still closing after 10s: %v", err))
@@ -148,8 +155,45 @@ func describe(c server.Config) string {
 	return strings.Join(parts, ", ")
 }
 
+// webEndpoint is one HTTP listener: the health endpoint, the stats endpoint,
+// or both when they're set to the same address.
+type webEndpoint struct {
+	addr, what string
+	paths      []string
+	handler    http.Handler
+}
+
+func webEndpoints(o options, srv *server.Server) []webEndpoint {
+	var eps []webEndpoint
+	mux := func(addr, what, path string, add func(*http.ServeMux)) {
+		for i := range eps {
+			if eps[i].addr == addr {
+				add(eps[i].handler.(*http.ServeMux))
+				eps[i].what += " and " + what
+				eps[i].paths = append(eps[i].paths, path)
+				return
+			}
+		}
+		m := http.NewServeMux()
+		add(m)
+		eps = append(eps, webEndpoint{addr: addr, what: what, paths: []string{path}, handler: m})
+	}
+	if o.health != "" {
+		mux(o.health, "health", "/healthz", func(m *http.ServeMux) { addHealth(m, srv) })
+	}
+	if o.stats != "" {
+		mux(o.stats, "stats", "/stats", func(m *http.ServeMux) { addStats(m, srv, o.cfg.Version) })
+	}
+	return eps
+}
+
 func healthHandler(srv *server.Server) http.Handler {
 	mux := http.NewServeMux()
+	addHealth(mux, srv)
+	return mux
+}
+
+func addHealth(mux *http.ServeMux, srv *server.Server) {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(struct {
@@ -157,7 +201,36 @@ func healthHandler(srv *server.Server) http.Handler {
 			server.Stats
 		}{"ok", srv.Stats()})
 	})
+}
+
+// publicStats is what the stats endpoint answers, for a public status page.
+type publicStats struct {
+	Version       string `json:"version"`
+	PlayersOnline int    `json:"players_online"`
+	OpenRooms     int    `json:"open_rooms"`
+}
+
+func statsHandler(srv *server.Server, version string) http.Handler {
+	mux := http.NewServeMux()
+	addStats(mux, srv, version)
 	return mux
+}
+
+// addStats serves GET /stats: the server's version, the games logged in, and
+// the rooms open. Each logged-in game holds one room code that others can join
+// it by, so the two counts are the same today; they're kept apart so a page
+// needn't change if that ever does. Nothing about who is on is given out.
+func addStats(mux *http.ServeMux, srv *server.Server, version string) {
+	mux.HandleFunc("GET /stats", func(w http.ResponseWriter, r *http.Request) {
+		st := srv.Stats()
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(publicStats{
+			Version:       version,
+			PlayersOnline: st.LoggedIn,
+			OpenRooms:     st.LoggedIn,
+		})
+	})
 }
 
 // healthcheck asks a running server's health endpoint, for Docker's HEALTHCHECK.

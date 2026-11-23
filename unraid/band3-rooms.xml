@@ -30,5 +30,6 @@
   <Config Name="Max connections per IP" Target="ROOMS_MAX_CONNS_PER_IP" Default="16" Mode="" Description="Connections at once from one address; 0 = no limit" Type="Variable" Display="advanced" Required="false" Mask="false">16</Config>
   <Config Name="Failed joins per connection" Target="ROOMS_CONN_JOIN_MISSES" Default="5" Mode="" Description="Joins to a code that doesn't exist, per minute, per connection; 0 = no limit" Type="Variable" Display="advanced" Required="false" Mask="false">5</Config>
   <Config Name="Failed joins per IP" Target="ROOMS_IP_JOIN_MISSES" Default="20" Mode="" Description="Joins to a code that doesn't exist, per minute, from one address; 0 = no limit" Type="Variable" Display="advanced" Required="false" Mask="false">20</Config>
+  <Config Name="Stats endpoint" Target="ROOMS_STATS" Default="" Mode="" Description="Optional: host:port for GET /stats (version, players online, open rooms), for a status page; e.g. 0.0.0.0:19533 with that port mapped, ideally only to a web server in front of it. Blank = off" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="Hex log" Target="ROOMS_HEX" Default="false" Mode="" Description="Log every packet in hex, for debugging" Type="Variable" Display="advanced" Required="false" Mask="false">false</Config>
 </Container>
