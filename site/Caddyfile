@@ -1,0 +1,56 @@
+# rockband.idiosynchronic.com: the server status page (/etc/caddy/Caddyfile on the VM).
+#
+# Static files, plus two read-only JSON calls passed through to the servers on
+# this machine. Nothing else of GoCentral's REST API (which has admin endpoints)
+# is reachable: /api/stats goes to GoCentral's GET /stats only, /api/rooms to
+# band3-rooms' GET /stats (ROOMS_STATS) only, any other /api/ path is a 404,
+# and anything but GET under /api/ is a 405.
+#
+# The {$NAME:default} placeholders are for testing this same file locally
+# (site/README.md); on the VM none are set and the defaults apply.
+{
+	admin {$CADDY_ADMIN:localhost:2019}
+}
+
+{$SITE_ADDRESS:rockband.idiosynchronic.com} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		Content-Security-Policy "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+		-Server
+	}
+
+	handle /api/* {
+		header Cache-Control no-store
+		# route keeps these in the order written
+		route {
+			@notGet not method GET
+			header @notGet Allow GET
+			respond @notGet 405
+
+			handle /api/stats {
+				# the whole path and query are replaced: GoCentral only ever sees GET /stats
+				rewrite * /stats?
+				reverse_proxy {$GOCENTRAL_UPSTREAM:127.0.0.1:8080} {
+					header_up -Authorization
+					header_up -Cookie
+				}
+			}
+			handle /api/rooms {
+				rewrite * /stats?
+				reverse_proxy {$ROOMS_UPSTREAM:127.0.0.1:19533} {
+					header_up -Authorization
+					header_up -Cookie
+				}
+			}
+			respond 404
+		}
+	}
+
+	handle {
+		root * {$SITE_ROOT:/var/www/band3-site}
+		file_server
+	}
+}

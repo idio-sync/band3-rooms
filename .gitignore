@@ -1,3 +1,5 @@
 /band3-rooms
 /band3-rooms.exe
 .env
+site/.screenshots/
+__pycache__/

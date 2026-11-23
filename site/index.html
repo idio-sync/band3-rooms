@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>band3 servers · rockband.idiosynchronic.com</title>
+<meta name="description" content="Status and stats for band3's GoCentral and Rooms servers at rockband.idiosynchronic.com, and how to connect.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='2' height='10' x='0' fill='%2322a851'/%3E%3Crect width='2' height='10' x='2' fill='%23e0393e'/%3E%3Crect width='2' height='10' x='4' fill='%23f2c12e'/%3E%3Crect width='2' height='10' x='6' fill='%232f7fe0'/%3E%3Crect width='2' height='10' x='8' fill='%23f08a24'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --card: #ffffff;
+    --text: #1b1a1f;
+    --muted: #5e5b66;
+    --line: #e2ded5;
+    --accent: #a8164f;
+    --ok: #1d8a45;
+    --bad: #c42b31;
+    --wait: #8a8794;
+    --code-bg: #f1eee7;
+    --green: #22a851; --red: #e0393e; --yellow: #f2c12e; --blue: #2f7fe0; --orange: #f08a24;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141318;
+      --card: #1d1c23;
+      --text: #ecebf0;
+      --muted: #a29fae;
+      --line: #2f2d38;
+      --accent: #ff6fa5;
+      --ok: #45c871;
+      --bad: #ff6b6b;
+      --wait: #8a8794;
+      --code-bg: #26242e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .frets { display: flex; height: 6px; }
+  .frets span { flex: 1; }
+  .frets span:nth-child(1) { background: var(--green); }
+  .frets span:nth-child(2) { background: var(--red); }
+  .frets span:nth-child(3) { background: var(--yellow); }
+  .frets span:nth-child(4) { background: var(--blue); }
+  .frets span:nth-child(5) { background: var(--orange); }
+  main, footer { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+  header.top { padding: 32px 0 8px; }
+  .eyebrow {
+    margin: 0;
+    font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700;
+  }
+  h1 {
+    margin: 4px 0 8px;
+    font-size: clamp(30px, 7vw, 44px); line-height: 1.1;
+    font-weight: 800; letter-spacing: -.02em;
+  }
+  .lede { margin: 0; color: var(--muted); max-width: 56ch; }
+  .updated { margin: 12px 0 0; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  section { margin: 36px 0; }
+  h2 {
+    margin: 0 0 14px;
+    font-size: 14px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .servers { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .server-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .server-name { margin: 0; font-size: 19px; font-weight: 700; }
+  .server-what { margin: 2px 0 0; font-size: 14px; color: var(--muted); }
+  .state { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 15px; color: var(--wait); }
+  .state::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .state.on { color: var(--ok); }
+  .state.off { color: var(--bad); }
+  .state.on::before { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  .facts { display: flex; gap: 22px; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .facts div { min-width: 0; }
+  .facts dt { font-size: 13px; color: var(--muted); }
+  .facts dd { margin: 0; font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; }
+  .facts dd.small { font-size: 15px; font-weight: 600; padding-top: 5px; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+  @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .stat { margin: 0; }
+  .stat p { margin: 0; }
+  .stat .num { font-size: 30px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .stat .label { color: var(--muted); font-size: 14px; }
+  .stat .note { display: block; font-size: 12px; }
+  .songs { list-style: none; margin: 0; padding: 0; counter-reset: song; }
+  .songs li {
+    counter-increment: song;
+    display: grid; grid-template-columns: 34px 1fr; gap: 4px 12px; align-items: baseline;
+    padding: 12px 0; border-top: 1px solid var(--line);
+  }
+  .songs li:first-child { border-top: 0; padding-top: 2px; }
+  .songs li:last-child { padding-bottom: 2px; }
+  .songs li::before {
+    content: counter(song);
+    grid-row: span 2;
+    font-size: 26px; font-weight: 800; line-height: 1; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .songs .title { font-weight: 700; overflow-wrap: anywhere; }
+  .songs .artist { font-weight: 400; color: var(--muted); }
+  .songs .count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .songs .empty { display: block; color: var(--muted); padding: 2px 0; }
+  .songs .empty::before { content: none; }
+  ol.steps { margin: 0; padding-left: 22px; }
+  ol.steps li { margin: 0 0 10px; padding-left: 4px; }
+  ol.steps li:last-child { margin-bottom: 0; }
+  .note-muted { color: var(--muted); font-size: 14px; margin: 14px 0 0; }
+  code {
+    font: 0.92em/1.4 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    background: var(--code-bg);
+    padding: 1px 5px; border-radius: 5px;
+    overflow-wrap: anywhere;
+  }
+  .host {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin: 0 0 16px; padding: 12px 14px;
+    background: var(--code-bg); border-radius: 10px;
+  }
+  .host code { background: none; padding: 0; font-size: 17px; font-weight: 600; }
+  .host button {
+    margin-left: auto;
+    font: inherit; font-size: 14px; font-weight: 600;
+    color: var(--text); background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 4px 12px; cursor: pointer;
+  }
+  .host button:hover { border-color: var(--muted); }
+  b.ui { font-weight: 650; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  footer { padding-top: 8px; padding-bottom: 40px; font-size: 14px; color: var(--muted); }
+  footer .rule { height: 1px; background: var(--line); margin-bottom: 18px; }
+  footer p { margin: 0 0 10px; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="frets" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+<main>
+  <header class="top">
+    <p class="eyebrow">rockband.idiosynchronic.com</p>
+    <h1>band3 servers</h1>
+    <p class="lede">The online servers for band3, the PC recompilation of Rock Band 3: GoCentral for
+      leaderboards, battles and setlists, and Rooms for joining friends by a room code.</p>
+    <p class="updated" id="updated" aria-live="polite">Checking…</p>
+  </header>
+
+  <section aria-labelledby="h-status">
+    <h2 id="h-status">Server status</h2>
+    <div class="servers">
+      <div class="card">
+        <div class="server-head">
+          <div>
+            <p class="server-name">GoCentral</p>
+            <p class="server-what">Leaderboards, battles, setlists</p>
+          </div>
+          <span class="state" id="gc-state">Checking</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="server-head">
+          <div>
+            <p class="server-name">Rooms</p>
+            <p class="server-what">Join friends by room code</p>
+          </div>
+          <span class="state" id="rooms-state">Checking</span>
+        </div>
+        <dl class="facts">
+          <div><dt>Players online</dt><dd id="rooms-players">–</dd></div>
+          <div><dt>Open rooms</dt><dd id="rooms-open">–</dd></div>
+          <div><dt>Version</dt><dd class="small" id="rooms-version">–</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-stats">
+    <h2 id="h-stats">Stats</h2>
+    <div class="stats">
+      <div class="card stat"><p class="num" data-stat="scores">–</p><p class="label">Scores</p></div>
+      <div class="card stat"><p class="num" data-stat="machines">–</p><p class="label">Machines</p></div>
+      <div class="card stat"><p class="num" data-stat="setlists">–</p><p class="label">Setlists</p></div>
+      <div class="card stat"><p class="num" data-stat="characters">–</p><p class="label">Characters</p></div>
+      <div class="card stat"><p class="num" data-stat="bands">–</p><p class="label">Bands</p></div>
+      <div class="card stat"><p class="num" data-stat="active_gatherings">–</p><p class="label">Active gatherings <span class="note">in the last 5 minutes</span></p></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-songs">
+    <h2 id="h-songs">Most popular songs</h2>
+    <div class="card">
+      <ol class="songs" id="songs"><li class="empty">Checking…</li></ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-connect">
+    <h2 id="h-connect">How to connect</h2>
+    <div class="card">
+      <div class="host">
+        <code id="host">rockband.idiosynchronic.com</code>
+        <button type="button" id="copy" hidden>Copy</button>
+      </div>
+      <ol class="steps">
+        <li>Name the profile player 1 starts with after yourself (not blank or “User”). Both
+          servers know you by that name alone, with no password, so pick one nobody else uses.</li>
+        <li>In band3, open <b class="ui">Settings › Online</b> (in the launcher or in the game).</li>
+        <li>Under <b class="ui">GoCentral</b>, turn on <b class="ui">Leaderboards and battles</b> and set
+          <b class="ui">Server</b> to <code>rockband.idiosynchronic.com</code>.</li>
+        <li>Under <b class="ui">Online play</b>, turn on <b class="ui">Play online</b> and
+          <b class="ui">Rooms</b>, and set <b class="ui">Rooms server</b> to
+          <code>rockband.idiosynchronic.com</code>. <b class="ui">Test connection</b> shows your ping to it.</li>
+        <li>Restart band3, or press <b class="ui">Play</b> in the launcher.</li>
+      </ol>
+      <p class="note-muted">Both are band3's defaults, so you may only need to turn them on. In
+        <code>band3.toml</code> they're <code>gocentral</code>, <code>gocentral_address</code>,
+        <code>liveless</code>, <code>liveless_rooms</code> and <code>liveless_rooms_server</code>.
+        Rooms only introduces games: whoever hosts still needs UDP port 9103 reachable
+        (<b class="ui">Open the port on the router</b> asks the router for it).</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="rule"></div>
+  <p><a href="https://github.com/idio-sync/band3_recomp">band3 on GitHub</a></p>
+  <p>This site is not affiliated with Harmonix Music Systems or any of their publishers, and is also not affiliated with MiloHax, GOCentral, or the RBEnhanced projects.</p>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  var REFRESH_MS = 30000;
+  var STATS = ["scores", "machines", "setlists", "characters", "bands", "active_gatherings"];
+  var songs = null;
+  var updatedAt = 0;
+  var fmt = new Intl.NumberFormat("en-US");
+
+  function $(id) { return document.getElementById(id); }
+
+  function count(n) {
+    return typeof n === "number" && isFinite(n) ? fmt.format(n) : "–";
+  }
+
+  function getJSON(url) {
+    var ctrl = typeof AbortController === "function" ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 10000) : 0;
+    return fetch(url, { cache: "no-store", signal: ctrl ? ctrl.signal : undefined, headers: { Accept: "application/json" } })
+      .then(function (r) {
+        if (!r.ok) throw new Error(url + ": " + r.status);
+        return r.json();
+      })
+      .then(function (body) {
+        if (!body || typeof body !== "object") throw new Error(url + ": not an object");
+        return body;
+      })
+      .finally(function () { clearTimeout(timer); });
+  }
+
+  function setState(el, online) {
+    el.className = "state " + (online ? "on" : "off");
+    el.textContent = online ? "Online" : "Offline";
+  }
+
+  function songItem(id, scores) {
+    var li = document.createElement("li");
+    var known = songs && songs[String(id)];
+    var line = document.createElement("div");
+    var title = document.createElement("span");
+    title.className = "title";
+    if (known) {
+      title.textContent = known.name;
+      var artist = document.createElement("span");
+      artist.className = "artist";
+      artist.textContent = " — " + known.artist;
+      line.appendChild(title);
+      line.appendChild(artist);
+    } else {
+      title.textContent = "Song #" + id;
+      line.appendChild(title);
+    }
+    var n = document.createElement("div");
+    n.className = "count";
+    n.textContent = typeof scores === "number" ? count(scores) + (scores === 1 ? " score" : " scores") : "";
+    li.appendChild(line);
+    li.appendChild(n);
+    return li;
+  }
+
+  function showSongs(stats) {
+    var list = $("songs");
+    list.textContent = "";
+    if (!stats) {
+      list.appendChild(emptyItem("Unavailable while GoCentral is offline."));
+      return;
+    }
+    var ids = Array.isArray(stats.most_popular_song_ids) ? stats.most_popular_song_ids : [];
+    var counts = Array.isArray(stats.most_popular_song_score_counts) ? stats.most_popular_song_score_counts : [];
+    var shown = 0;
+    for (var i = 0; i < ids.length; i++) {
+      if (typeof ids[i] !== "number" && typeof ids[i] !== "string") continue;
+      list.appendChild(songItem(ids[i], counts[i]));
+      shown++;
+    }
+    if (!shown) list.appendChild(emptyItem("No scores yet"));
+  }
+
+  function emptyItem(text) {
+    var li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = text;
+    return li;
+  }
+
+  function showGoCentral(stats) {
+    setState($("gc-state"), !!stats);
+    STATS.forEach(function (key) {
+      var el = document.querySelector('[data-stat="' + key + '"]');
+      el.textContent = stats ? count(stats[key]) : "–";
+    });
+    showSongs(stats);
+  }
+
+  function showRooms(rooms) {
+    setState($("rooms-state"), !!rooms);
+    $("rooms-players").textContent = rooms ? count(rooms.players_online) : "–";
+    $("rooms-open").textContent = rooms ? count(rooms.open_rooms) : "–";
+    $("rooms-version").textContent = rooms && typeof rooms.version === "string" && rooms.version ? rooms.version : "–";
+  }
+
+  function tick() {
+    if (!updatedAt) return;
+    var s = Math.max(0, Math.round((Date.now() - updatedAt) / 1000));
+    var ago = s < 60 ? s + "s ago" : Math.floor(s / 60) + "m " + (s % 60) + "s ago";
+    $("updated").textContent = "Updated " + ago + " · refreshes every 30 s";
+  }
+
+  var polling = false;
+  function poll() {
+    if (polling) return;
+    polling = true;
+    // the names are only needed once; a failed load is tried again next time
+    var names = songs ? Promise.resolve(songs) : getJSON("songs.json").catch(function () { return null; });
+    Promise.all([
+      getJSON("/api/stats").catch(function () { return null; }),
+      getJSON("/api/rooms").catch(function () { return null; }),
+      names
+    ]).then(function (got) {
+      songs = got[2];
+      showGoCentral(got[0]);
+      showRooms(got[1]);
+      updatedAt = Date.now();
+      tick();
+    }).finally(function () { polling = false; });
+  }
+
+  var copy = $("copy");
+  if (navigator.clipboard && window.isSecureContext) {
+    copy.hidden = false;
+    copy.addEventListener("click", function () {
+      navigator.clipboard.writeText($("host").textContent).then(function () {
+        copy.textContent = "Copied";
+        setTimeout(function () { copy.textContent = "Copy"; }, 1500);
+      });
+    });
+  }
+
+  poll();
+  setInterval(poll, REFRESH_MS);
+  setInterval(tick, 1000);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && Date.now() - updatedAt > REFRESH_MS) poll();
+  });
+})();
+</script>
+</body>
+</html>
