@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>band3 servers · rockband.idiosynchronic.com</title>
-<meta name="description" content="Status and stats for band3's GoCentral and Rooms servers at rockband.idiosynchronic.com, and how to connect.">
+<meta name="description" content="Status and stats for band3's GoCentral and Rooms servers at rockband.idiosynchronic.com.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Crect width='2' height='10' x='0' fill='%2322a851'/%3E%3Crect width='2' height='10' x='2' fill='%23e0393e'/%3E%3Crect width='2' height='10' x='4' fill='%23f2c12e'/%3E%3Crect width='2' height='10' x='6' fill='%232f7fe0'/%3E%3Crect width='2' height='10' x='8' fill='%23f08a24'/%3E%3C/svg%3E">
 <style>
   :root {
@@ -78,20 +78,16 @@
     border-radius: 12px;
     padding: 16px 18px;
   }
-  .servers { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-  .server-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .server-name { margin: 0; font-size: 19px; font-weight: 700; }
-  .server-what { margin: 2px 0 0; font-size: 14px; color: var(--muted); }
-  .state { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 15px; color: var(--wait); }
+  .status { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; margin: 0; }
+  @media (max-width: 560px) { .status { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .status dt { font-size: 13px; color: var(--muted); }
+  .status dd { margin: 2px 0 0; min-height: 30px; display: flex; align-items: center; }
+  .status dd.num { font-size: 24px; font-weight: 750; line-height: 1.2; font-variant-numeric: tabular-nums; }
+  .state { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 17px; color: var(--wait); }
   .state::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
   .state.on { color: var(--ok); }
   .state.off { color: var(--bad); }
   .state.on::before { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
-  .facts { display: flex; gap: 22px; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line); flex-wrap: wrap; }
-  .facts div { min-width: 0; }
-  .facts dt { font-size: 13px; color: var(--muted); }
-  .facts dd { margin: 0; font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; }
-  .facts dd.small { font-size: 15px; font-weight: 600; padding-top: 5px; }
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
   @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .stat { margin: 0; }
@@ -118,31 +114,6 @@
   .songs .count { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .songs .empty { display: block; color: var(--muted); padding: 2px 0; }
   .songs .empty::before { content: none; }
-  ol.steps { margin: 0; padding-left: 22px; }
-  ol.steps li { margin: 0 0 10px; padding-left: 4px; }
-  ol.steps li:last-child { margin-bottom: 0; }
-  .note-muted { color: var(--muted); font-size: 14px; margin: 14px 0 0; }
-  code {
-    font: 0.92em/1.4 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-    background: var(--code-bg);
-    padding: 1px 5px; border-radius: 5px;
-    overflow-wrap: anywhere;
-  }
-  .host {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    margin: 0 0 16px; padding: 12px 14px;
-    background: var(--code-bg); border-radius: 10px;
-  }
-  .host code { background: none; padding: 0; font-size: 17px; font-weight: 600; }
-  .host button {
-    margin-left: auto;
-    font: inherit; font-size: 14px; font-weight: 600;
-    color: var(--text); background: var(--card);
-    border: 1px solid var(--line); border-radius: 8px;
-    padding: 4px 12px; cursor: pointer;
-  }
-  .host button:hover { border-color: var(--muted); }
-  b.ui { font-weight: 650; }
   a { color: var(--accent); text-underline-offset: 2px; }
   footer { padding-top: 8px; padding-bottom: 40px; font-size: 14px; color: var(--muted); }
   footer .rule { height: 1px; background: var(--line); margin-bottom: 18px; }
@@ -163,31 +134,12 @@
 
   <section aria-labelledby="h-status">
     <h2 id="h-status">Server status</h2>
-    <div class="servers">
-      <div class="card">
-        <div class="server-head">
-          <div>
-            <p class="server-name">GoCentral</p>
-            <p class="server-what">Leaderboards, battles, setlists</p>
-          </div>
-          <span class="state" id="gc-state">Checking</span>
-        </div>
-      </div>
-      <div class="card">
-        <div class="server-head">
-          <div>
-            <p class="server-name">Rooms</p>
-            <p class="server-what">Join friends by room code</p>
-          </div>
-          <span class="state" id="rooms-state">Checking</span>
-        </div>
-        <dl class="facts">
-          <div><dt>Players online</dt><dd id="rooms-players">–</dd></div>
-          <div><dt>Open rooms</dt><dd id="rooms-open">–</dd></div>
-          <div><dt>Version</dt><dd class="small" id="rooms-version">–</dd></div>
-        </dl>
-      </div>
-    </div>
+    <dl class="card status">
+      <div><dt>GoCentral</dt><dd><span class="state" id="gc-state">Checking</span></dd></div>
+      <div><dt>Rooms</dt><dd><span class="state" id="rooms-state">Checking</span></dd></div>
+      <div><dt>Players online</dt><dd class="num" id="rooms-players">–</dd></div>
+      <div><dt>Open rooms</dt><dd class="num" id="rooms-open">–</dd></div>
+    </dl>
   </section>
 
   <section aria-labelledby="h-stats">
@@ -206,32 +158,6 @@
     <h2 id="h-songs">Most popular songs</h2>
     <div class="card">
       <ol class="songs" id="songs"><li class="empty">Checking…</li></ol>
-    </div>
-  </section>
-
-  <section aria-labelledby="h-connect">
-    <h2 id="h-connect">How to connect</h2>
-    <div class="card">
-      <div class="host">
-        <code id="host">rockband.idiosynchronic.com</code>
-        <button type="button" id="copy" hidden>Copy</button>
-      </div>
-      <ol class="steps">
-        <li>Name the profile player 1 starts with after yourself (not blank or “User”). Both
-          servers know you by that name alone, with no password, so pick one nobody else uses.</li>
-        <li>In band3, open <b class="ui">Settings › Online</b> (in the launcher or in the game).</li>
-        <li>Under <b class="ui">GoCentral</b>, turn on <b class="ui">Leaderboards and battles</b> and set
-          <b class="ui">Server</b> to <code>rockband.idiosynchronic.com</code>.</li>
-        <li>Under <b class="ui">Online play</b>, turn on <b class="ui">Play online</b> and
-          <b class="ui">Rooms</b>, and set <b class="ui">Rooms server</b> to
-          <code>rockband.idiosynchronic.com</code>. <b class="ui">Test connection</b> shows your ping to it.</li>
-        <li>Restart band3, or press <b class="ui">Play</b> in the launcher.</li>
-      </ol>
-      <p class="note-muted">Both are band3's defaults, so you may only need to turn them on. In
-        <code>band3.toml</code> they're <code>gocentral</code>, <code>gocentral_address</code>,
-        <code>liveless</code>, <code>liveless_rooms</code> and <code>liveless_rooms_server</code>.
-        Rooms only introduces games: whoever hosts still needs UDP port 9103 reachable
-        (<b class="ui">Open the port on the router</b> asks the router for it).</p>
     </div>
   </section>
 </main>
@@ -340,7 +266,6 @@
     setState($("rooms-state"), !!rooms);
     $("rooms-players").textContent = rooms ? count(rooms.players_online) : "–";
     $("rooms-open").textContent = rooms ? count(rooms.open_rooms) : "–";
-    $("rooms-version").textContent = rooms && typeof rooms.version === "string" && rooms.version ? rooms.version : "–";
   }
 
   function tick() {
@@ -367,17 +292,6 @@
       updatedAt = Date.now();
       tick();
     }).finally(function () { polling = false; });
-  }
-
-  var copy = $("copy");
-  if (navigator.clipboard && window.isSecureContext) {
-    copy.hidden = false;
-    copy.addEventListener("click", function () {
-      navigator.clipboard.writeText($("host").textContent).then(function () {
-        copy.textContent = "Copied";
-        setTimeout(function () { copy.textContent = "Copy"; }, 1500);
-      });
-    });
   }
 
   poll();

@@ -1,13 +1,13 @@
 # rockband.idiosynchronic.com status page
 
 One static page that shows whether band3's two servers on the VM are up, GoCentral's
-numbers and most popular songs, and how to connect. Caddy serves it and passes two
+numbers and most popular songs. Caddy serves it and passes two
 read-only JSON calls through to the servers on the same machine:
 
 | Path | Goes to | |
 |---|---|---|
 | `/api/stats` | GoCentral's `GET /stats` on `127.0.0.1:8080` | scores, machines, setlists, characters, bands, active gatherings, top 3 songs |
-| `/api/rooms` | band3-rooms' `GET /stats` on `127.0.0.1:19533` (`ROOMS_STATS`) | version, players online, open rooms |
+| `/api/rooms` | band3-rooms' `GET /stats` on `127.0.0.1:19533` (`ROOMS_STATS`) | players online, open rooms (the page doesn't show the version) |
 
 Nothing else of GoCentral's REST API (which has admin endpoints) is reachable: any other
 `/api/` path is a 404, anything but GET under `/api/` is a 405, and the upstreams only ever
